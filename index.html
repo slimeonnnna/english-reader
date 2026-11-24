@@ -114,12 +114,26 @@
 
     <!-- 2. 点读阅读视图 -->
     <section id="readView" class="view-panel" style="display: block;">
+      <!-- 顶部轻量阅读进度条与文章标题 -->
+      <div class="reader-progress-container">
+        <div class="reader-progress-meta">
+          <span id="readingArticleTitle" class="reading-article-title">准备就绪</span>
+          <span id="readingProgressPill" class="reading-progress-badge">已读 0% · 第 0 / 0 句</span>
+        </div>
+        <div class="reading-progress-track">
+          <div id="readingProgressBar" class="reading-progress-fill" style="width: 0%;"></div>
+        </div>
+      </div>
+
       <article class="reader-wrapper">
         <div id="readerContent" class="reader-content">
           <!-- 分词后的文章内容将动态注入此处 -->
         </div>
       </article>
     </section>
+
+    <!-- 浮动定位恢复提示 Toast -->
+    <div id="toastNotification" class="toast-notification hidden"></div>
 
   </main>
 

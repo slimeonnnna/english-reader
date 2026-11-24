@@ -183,6 +183,7 @@ class ArticleReader {
 
     this.container.innerHTML = html;
     this.bindWordClickEvents();
+    this._emitProgress(-1);
   }
 
   /**
@@ -292,6 +293,7 @@ class ArticleReader {
     const sentenceIdx = parseInt(wordEl.getAttribute("data-sentence-idx"), 10);
     this.currentSentenceText = this.sentences[sentenceIdx] || "";
     this.currentSentenceIdx = sentenceIdx;
+    this._emitProgress(sentenceIdx);
 
     // 先展示即时卡片骨架
     const immediateData = window.DictEngine.lookupSync(rawWord) || {
@@ -350,6 +352,7 @@ class ArticleReader {
     // 计算定位
     this.positionPopover(targetEl);
     this.popover.classList.remove("hidden");
+    this.popover.style.display = "block";
     if (this.backdrop) this.backdrop.classList.remove("hidden");
   }
 
@@ -384,7 +387,10 @@ class ArticleReader {
   }
 
   hidePopover() {
-    if (this.popover) this.popover.classList.add("hidden");
+    if (this.popover) {
+      this.popover.classList.add("hidden");
+      this.popover.style.display = "none";
+    }
     if (this.backdrop) this.backdrop.classList.add("hidden");
     if (this.currentActiveWordEl) {
       this.currentActiveWordEl.classList.remove("word-active");
@@ -406,11 +412,22 @@ class ArticleReader {
 
   highlightSentence(index) {
     this.clearSentenceHighlight();
+    this.currentSentenceIdx = index;
+    this._emitProgress(index);
     const sentEl = this.container.querySelector(`.reader-sentence[data-sentence-idx="${index}"]`);
     if (sentEl) {
       sentEl.classList.add("sentence-highlight");
       sentEl.scrollIntoView({ behavior: "smooth", block: "center" });
     }
+  }
+
+  _emitProgress(idx) {
+    window.dispatchEvent(new CustomEvent("readerProgressChanged", {
+      detail: {
+        sentenceIdx: idx,
+        totalSentences: this.sentences.length
+      }
+    }));
   }
 
   clearSentenceHighlight() {

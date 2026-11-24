@@ -52,6 +52,12 @@ class AppController {
     this.renderVocabList();
     this.updateDictStats();
 
+    // 监听实时阅读进度
+    window.addEventListener("readerProgressChanged", (e) => {
+      const { sentenceIdx, totalSentences } = e.detail;
+      this.updateReadingProgress(sentenceIdx, totalSentences);
+    });
+
     // 尝试恢复上一次阅读的文章与进度
     await this.restoreLastReadingSession();
   }
@@ -59,11 +65,21 @@ class AppController {
   async restoreLastReadingSession() {
     try {
       if (window.localDB) {
+        // 1. 优先读取最后一次活跃阅读的文章记录
         const lastArtId = await window.localDB.getSetting("last_reading_article_id");
         if (lastArtId) {
           const article = await window.localDB.getArticle(lastArtId);
-          if (article && article.content) {
+          if (article && article.content && article.content.trim()) {
             this.loadArticleData(article);
+            return;
+          }
+        }
+        // 2. 其次读取所有历史文章中的最近一篇
+        const allArticles = await window.localDB.getAllArticles();
+        if (allArticles && allArticles.length > 0) {
+          const recent = allArticles[0];
+          if (recent && recent.content && recent.content.trim()) {
+            this.loadArticleData(recent);
             return;
           }
         }
@@ -72,8 +88,10 @@ class AppController {
       console.warn("恢复上次阅读会话失败:", e);
     }
 
-    // 默认加载第一篇示例文章
-    this.loadSampleArticle("jobs");
+    // 3. 无任何历史记录时，加载默认精读文章
+    if (SAMPLE_ARTICLES && SAMPLE_ARTICLES.length > 0) {
+      this.loadSampleArticle(SAMPLE_ARTICLES[0].id);
+    }
   }
 
   bindDOMEvents() {
@@ -941,16 +959,19 @@ class AppController {
     this.reader.loadArticle(this.currentArticleText);
     this.switchMode("read");
 
-    // 恢复句子定位
+    // 恢复句子定位与进度提示
     if (article.lastReadSentenceIdx >= 0) {
       setTimeout(() => {
         this.reader.highlightSentence(article.lastReadSentenceIdx);
-      }, 100);
+        const total = this.reader.getSentenceList().length;
+        const pct = total > 0 ? Math.round(((article.lastReadSentenceIdx + 1) / total) * 100) : 0;
+        this.showToast(`📌 已为您恢复上次阅读进度：第 ${article.lastReadSentenceIdx + 1} 句 (${pct}%)`);
+      }, 150);
     }
   }
 
   loadSampleArticle(id) {
-    const sample = SAMPLE_ARTICLES.find(a => a.id === id);
+    const sample = SAMPLE_ARTICLES.find(a => a.id === id) || SAMPLE_ARTICLES[0];
     if (!sample) return;
     this.currentArticleId = "sample_" + sample.id;
     this.currentArticleTitle = sample.title;
@@ -963,6 +984,57 @@ class AppController {
 
     this.reader.loadArticle(sample.text);
     this.switchMode("read");
+  }
+
+  showToast(msg) {
+    const toast = document.getElementById("toastNotification");
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.classList.remove("hidden");
+    toast.style.opacity = "1";
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.toastTimer = setTimeout(() => {
+      toast.style.opacity = "0";
+      setTimeout(() => toast.classList.add("hidden"), 300);
+    }, 2400);
+  }
+
+  updateReadingProgress(sentenceIdx, totalSentences) {
+    const titleEl = document.getElementById("readingArticleTitle");
+    const pillEl = document.getElementById("readingProgressPill");
+    const barEl = document.getElementById("readingProgressBar");
+    const playerProg = document.getElementById("playerSentenceProgress");
+
+    if (titleEl) titleEl.textContent = this.currentArticleTitle || "当前文章";
+
+    if (!totalSentences || totalSentences <= 0) {
+      if (pillEl) pillEl.textContent = "未开始阅读";
+      if (barEl) barEl.style.width = "0%";
+      if (playerProg) playerProg.textContent = "第 0 / 0 句";
+      return;
+    }
+
+    if (sentenceIdx < 0) {
+      if (pillEl) pillEl.textContent = `准备就绪 · 共 ${totalSentences} 句`;
+      if (barEl) barEl.style.width = "0%";
+      if (playerProg) playerProg.textContent = `第 0 / ${totalSentences} 句`;
+    } else {
+      const cur = sentenceIdx + 1;
+      const pct = Math.min(100, Math.round((cur / totalSentences) * 100));
+      if (pillEl) pillEl.textContent = `已读 ${pct}% · 第 ${cur} / ${totalSentences} 句`;
+      if (barEl) barEl.style.width = `${pct}%`;
+      if (playerProg) playerProg.textContent = `第 ${cur} / ${totalSentences} 句 (${pct}%)`;
+
+      // 自动保存阅读句进度至 IndexedDB
+      if (this.currentArticleId && window.localDB) {
+        window.localDB.saveArticle({
+          id: this.currentArticleId,
+          title: this.currentArticleTitle,
+          content: this.currentArticleText,
+          lastReadSentenceIdx: sentenceIdx
+        }).catch(() => {});
+      }
+    }
   }
 
   switchMode(mode) {
@@ -1008,7 +1080,7 @@ class AppController {
     window.speechEngine.startArticlePlayback(sentences, startIdx, {
       onSentenceStart: (idx) => {
         this.reader.highlightSentence(idx);
-        this.updateSentenceProgress(idx, sentences.length);
+        this.updateReadingProgress(idx, sentences.length);
         // 自动更新阅读进度至 IndexedDB
         if (this.currentArticleId && window.localDB) {
           window.localDB.saveArticle({
@@ -1022,7 +1094,7 @@ class AppController {
       onArticleEnd: () => {
         this.reader.clearSentenceHighlight();
         this.updatePlayerControls(false, false);
-        this.updateSentenceProgress(sentences.length, sentences.length);
+        this.updateReadingProgress(sentences.length - 1, sentences.length);
       }
     });
   }
@@ -1043,10 +1115,7 @@ class AppController {
   }
 
   updateSentenceProgress(currentIdx, totalCount) {
-    const progressEl = document.getElementById("playerSentenceProgress");
-    if (progressEl) {
-      progressEl.textContent = `第 ${currentIdx + 1} / ${totalCount} 句`;
-    }
+    this.updateReadingProgress(currentIdx, totalCount);
   }
 
   initVoicePresetsUI() {
