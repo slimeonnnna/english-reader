@@ -163,6 +163,12 @@ class LocalSpeechEngine {
     } catch (e) {}
   }
 
+  getEffectivePitch(isMalePreset = null) {
+    const isMale = isMalePreset !== null ? isMalePreset : this.currentPresetKey.endsWith("male");
+    // 男声下沉音调至 0.78 营造浑厚男低音；女声保持 1.06 清脆自然
+    return isMale ? 0.78 : 1.06;
+  }
+
   /**
    * 试听当前选择的音色
    */
@@ -190,22 +196,23 @@ class LocalSpeechEngine {
     const utterance = new SpeechSynthesisUtterance(cleanWord);
     
     let voice = null;
+    const isMale = this.currentPresetKey.endsWith("male");
+
     if (accent === "uk") {
-      voice = this.classifiedPresets.uk_female || this.classifiedPresets.uk_male;
+      voice = isMale ? (this.classifiedPresets.uk_male || this.classifiedPresets.uk_female) : (this.classifiedPresets.uk_female || this.classifiedPresets.uk_male);
+      utterance.lang = "en-GB";
     } else {
-      voice = this.classifiedPresets.us_female || this.classifiedPresets.us_male;
+      voice = isMale ? (this.classifiedPresets.us_male || this.classifiedPresets.us_female) : (this.classifiedPresets.us_female || this.classifiedPresets.us_male);
+      utterance.lang = "en-US";
     }
     if (!voice) voice = this.selectedVoice;
 
     if (voice) {
       utterance.voice = voice;
-      utterance.lang = voice.lang;
-    } else {
-      utterance.lang = accent === "uk" ? "en-GB" : "en-US";
     }
 
     utterance.rate = this.rate;
-    utterance.pitch = this.pitch;
+    utterance.pitch = this.getEffectivePitch(isMale);
     utterance.volume = this.volume;
 
     this.synth.speak(utterance);
@@ -223,13 +230,13 @@ class LocalSpeechEngine {
     
     if (this.selectedVoice) {
       utterance.voice = this.selectedVoice;
-      utterance.lang = this.selectedVoice.lang;
+      utterance.lang = this.selectedVoice.lang || (this.currentPresetKey.startsWith("uk") ? "en-GB" : "en-US");
     } else {
-      utterance.lang = "en-US";
+      utterance.lang = this.currentPresetKey.startsWith("uk") ? "en-GB" : "en-US";
     }
 
     utterance.rate = this.rate;
-    utterance.pitch = this.pitch;
+    utterance.pitch = this.getEffectivePitch();
     utterance.volume = this.volume;
 
     utterance.onend = () => { if (onEnd) onEnd(); };
@@ -248,13 +255,13 @@ class LocalSpeechEngine {
     const utterance = new SpeechSynthesisUtterance(sentenceText);
     if (this.selectedVoice) {
       utterance.voice = this.selectedVoice;
-      utterance.lang = this.selectedVoice.lang;
+      utterance.lang = this.selectedVoice.lang || (this.currentPresetKey.startsWith("uk") ? "en-GB" : "en-US");
     } else {
-      utterance.lang = "en-US";
+      utterance.lang = this.currentPresetKey.startsWith("uk") ? "en-GB" : "en-US";
     }
 
     utterance.rate = this.rate;
-    utterance.pitch = this.pitch;
+    utterance.pitch = this.getEffectivePitch();
     utterance.volume = this.volume;
 
     utterance.onstart = () => { if (onStart) onStart(); };
@@ -295,13 +302,13 @@ class LocalSpeechEngine {
     const utterance = new SpeechSynthesisUtterance(text);
     if (this.selectedVoice) {
       utterance.voice = this.selectedVoice;
-      utterance.lang = this.selectedVoice.lang;
+      utterance.lang = this.selectedVoice.lang || (this.currentPresetKey.startsWith("uk") ? "en-GB" : "en-US");
     } else {
-      utterance.lang = "en-US";
+      utterance.lang = this.currentPresetKey.startsWith("uk") ? "en-GB" : "en-US";
     }
 
     utterance.rate = this.rate;
-    utterance.pitch = this.pitch;
+    utterance.pitch = this.getEffectivePitch();
     utterance.volume = this.volume;
 
     utterance.onstart = () => {
