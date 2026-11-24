@@ -1,6 +1,6 @@
 /**
  * 英语点读软件主程序控制器 (Main Application Controller)
- * 整合离线词库、语音合成、生词本、视图切换与文章样例库
+ * 整合离线词库、智能语音合成、生词本、词库管理与响应式交互
  */
 
 const SAMPLE_ARTICLES = [
@@ -62,16 +62,15 @@ class AppController {
   }
 
   init() {
-    // 初始化 Reader
     const container = document.getElementById("readerContent");
     const popover = document.getElementById("wordPopover");
     this.reader = new ArticleReader(container, popover);
 
-    // 绑定 DOM 元素与事件
     this.bindDOMEvents();
-    this.initVoicesUI();
+    this.initVoicePresetsUI();
     this.initThemeAndFont();
     this.renderVocabList();
+    this.updateDictStats();
 
     // 默认加载第一篇示例文章
     this.loadSampleArticle("jobs");
@@ -106,7 +105,7 @@ class AppController {
     // 2. 示例文档选择
     const sampleSelect = document.getElementById("sampleSelect");
     if (sampleSelect) {
-      sampleSelect.innerHTML = `<option value="" disabled selected>📖 选择示例文档快速体验...</option>` +
+      sampleSelect.innerHTML = `<option value="" disabled selected>📖 示例文档快速体验...</option>` +
         SAMPLE_ARTICLES.map(a => `<option value="${a.id}">[${a.category}] ${a.title}</option>`).join("");
 
       sampleSelect.addEventListener("change", (e) => {
@@ -204,7 +203,23 @@ class AppController {
       });
     }
 
-    // 6. 生词本侧边栏控制
+    // 6. 音色快速切换与试听
+    const voicePresetSelect = document.getElementById("voicePresetSelect");
+    const btnPreviewVoice = document.getElementById("btnPreviewVoice");
+
+    if (voicePresetSelect) {
+      voicePresetSelect.addEventListener("change", (e) => {
+        window.speechEngine.setPreset(e.target.value);
+      });
+    }
+
+    if (btnPreviewVoice) {
+      btnPreviewVoice.addEventListener("click", () => {
+        window.speechEngine.previewCurrentVoice();
+      });
+    }
+
+    // 7. 生词本侧边栏控制
     const btnOpenVocab = document.getElementById("btnOpenVocab");
     const btnCloseVocab = document.getElementById("btnCloseVocab");
     const vocabDrawer = document.getElementById("vocabDrawer");
@@ -226,13 +241,8 @@ class AppController {
       });
     }
 
-    if (btnExportCSV) {
-      btnExportCSV.addEventListener("click", () => window.vocabManager.exportCSV());
-    }
-
-    if (btnExportTXT) {
-      btnExportTXT.addEventListener("click", () => window.vocabManager.exportTXT());
-    }
+    if (btnExportCSV) btnExportCSV.addEventListener("click", () => window.vocabManager.exportCSV());
+    if (btnExportTXT) btnExportTXT.addEventListener("click", () => window.vocabManager.exportTXT());
 
     if (btnClearVocab) {
       btnClearVocab.addEventListener("click", () => {
@@ -253,7 +263,84 @@ class AppController {
       this.renderVocabList();
     });
 
-    // 7. 设置弹窗
+    // 8. 词典管理与批量导入弹窗 (Dict Manager)
+    const btnOpenDictMgr = document.getElementById("btnOpenDictMgr");
+    const dictModal = document.getElementById("dictModal");
+    const btnCloseDictModal = document.getElementById("btnCloseDictModal");
+    const btnDoImportDict = document.getElementById("btnDoImportDict");
+    const dictImportText = document.getElementById("dictImportText");
+    const dictFileInput = document.getElementById("dictFileInput");
+    const btnUploadDictFile = document.getElementById("btnUploadDictFile");
+    const btnExportDictJSON = document.getElementById("btnExportDictJSON");
+    const btnExportDictCSV = document.getElementById("btnExportDictCSV");
+    const btnClearCustomDict = document.getElementById("btnClearCustomDict");
+
+    if (btnOpenDictMgr && dictModal) {
+      btnOpenDictMgr.addEventListener("click", () => {
+        this.updateDictStats();
+        dictModal.classList.remove("hidden");
+      });
+    }
+
+    if (btnCloseDictModal && dictModal) {
+      btnCloseDictModal.addEventListener("click", () => {
+        dictModal.classList.add("hidden");
+      });
+    }
+
+    if (btnDoImportDict && dictImportText) {
+      btnDoImportDict.addEventListener("click", () => {
+        const text = dictImportText.value.trim();
+        if (!text) {
+          alert("请先输入或粘贴要导入的词库内容！");
+          return;
+        }
+        const res = window.DictEngine.importDictionary(text);
+        if (res.success) {
+          alert(`🎉 成功导入 ${res.count} 个单词释义！`);
+          dictImportText.value = "";
+          this.updateDictStats();
+        } else {
+          alert(`导入失败: ${res.error}`);
+        }
+      });
+    }
+
+    if (btnUploadDictFile && dictFileInput) {
+      btnUploadDictFile.addEventListener("click", () => dictFileInput.click());
+      dictFileInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const res = window.DictEngine.importDictionary(event.target.result);
+          if (res.success) {
+            alert(`🎉 成功从文件导入 ${res.count} 个词条！`);
+            this.updateDictStats();
+          } else {
+            alert(`导入文件失败: ${res.error}`);
+          }
+        };
+        reader.readAsText(file);
+      });
+    }
+
+    if (btnExportDictJSON) btnExportDictJSON.addEventListener("click", () => window.DictEngine.exportCustomJSON());
+    if (btnExportDictCSV) btnExportDictCSV.addEventListener("click", () => window.DictEngine.exportCustomCSV());
+
+    if (btnClearCustomDict) {
+      btnClearCustomDict.addEventListener("click", () => {
+        if (confirm("确定要清空所有自定义导入的词库数据吗？")) {
+          window.DictEngine.clearCustomDict();
+          this.updateDictStats();
+          alert("已重置为系统默认内置词库！");
+        }
+      });
+    }
+
+    window.addEventListener("dictUpdated", () => this.updateDictStats());
+
+    // 9. 设置弹窗
     const btnOpenSettings = document.getElementById("btnOpenSettings");
     const btnCloseSettings = document.getElementById("btnCloseSettings");
     const settingsModal = document.getElementById("settingsModal");
@@ -292,25 +379,17 @@ class AppController {
       });
     }
 
-    // 8. 主题选择
-    const themeButtons = document.querySelectorAll(".theme-btn");
-    themeButtons.forEach(btn => {
-      btn.addEventListener("click", () => {
-        const theme = btn.getAttribute("data-theme");
-        this.setTheme(theme);
-      });
+    // 主题切换
+    document.querySelectorAll(".theme-btn").forEach(btn => {
+      btn.addEventListener("click", () => this.setTheme(btn.getAttribute("data-theme")));
     });
 
-    // 字体样式选择
-    const fontButtons = document.querySelectorAll(".font-btn");
-    fontButtons.forEach(btn => {
-      btn.addEventListener("click", () => {
-        const font = btn.getAttribute("data-font");
-        this.setFontFamily(font);
-      });
+    // 字体切换
+    document.querySelectorAll(".font-btn").forEach(btn => {
+      btn.addEventListener("click", () => this.setFontFamily(btn.getAttribute("data-font")));
     });
 
-    // 9. 编辑释义弹窗
+    // 10. 编辑单个单词释义弹窗
     const editDefModal = document.getElementById("editDefModal");
     const btnSaveDef = document.getElementById("btnSaveDef");
     const btnCancelDef = document.getElementById("btnCancelDef");
@@ -326,7 +405,6 @@ class AppController {
         }
         window.DictEngine.addCustomWord(word, phonetic, def);
         editDefModal.classList.add("hidden");
-        // 重新刷新当前查词弹窗
         if (this.reader.currentActiveWordEl) {
           this.reader.handleWordClick(this.reader.currentActiveWordEl);
         }
@@ -334,16 +412,12 @@ class AppController {
     }
 
     if (btnCancelDef) {
-      btnCancelDef.addEventListener("click", () => {
-        editDefModal.classList.add("hidden");
-      });
+      btnCancelDef.addEventListener("click", () => editDefModal.classList.add("hidden"));
     }
 
-    // 10. 键盘快捷键监听
+    // 11. 快捷键
     document.addEventListener("keydown", (e) => {
-      // 如果在输入框内输入，则不触发播放快捷键
       if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
-
       if (e.code === "Space") {
         e.preventDefault();
         this.togglePlayback();
@@ -351,6 +425,7 @@ class AppController {
         this.reader.hidePopover();
         if (vocabDrawer) vocabDrawer.classList.remove("open");
         if (settingsModal) settingsModal.classList.add("hidden");
+        if (dictModal) dictModal.classList.add("hidden");
         if (editDefModal) editDefModal.classList.add("hidden");
       }
     });
@@ -390,29 +465,22 @@ class AppController {
     }
   }
 
-  initVoicesUI() {
-    const voiceSelect = document.getElementById("voiceSelect");
-    const updateVoiceOptions = () => {
-      if (!voiceSelect) return;
-      const voices = window.speechEngine.englishVoices;
-      const currentSelected = window.speechEngine.selectedVoice;
+  initVoicePresetsUI() {
+    const presetSelect = document.getElementById("voicePresetSelect");
+    const settingsPresetSelect = document.getElementById("settingsVoicePresetSelect");
 
-      voiceSelect.innerHTML = voices.map(v => {
-        const isSel = currentSelected && currentSelected.voiceURI === v.voiceURI ? "selected" : "";
-        return `<option value="${v.voiceURI}" ${isSel}>${v.name} (${v.lang})</option>`;
-      }).join("");
-
-      voiceSelect.onchange = (e) => {
-        window.speechEngine.setVoice(e.target.value);
-      };
+    const updatePresetSelections = () => {
+      const cur = window.speechEngine.currentPresetKey;
+      if (presetSelect) presetSelect.value = cur;
+      if (settingsPresetSelect) settingsPresetSelect.value = cur;
     };
 
-    window.addEventListener("voicesReady", updateVoiceOptions);
-    updateVoiceOptions();
+    window.addEventListener("voicesReady", updatePresetSelections);
+    window.addEventListener("voicePresetChanged", updatePresetSelections);
+    updatePresetSelections();
   }
 
   initThemeAndFont() {
-    // 读取持久化主题
     try {
       const savedTheme = localStorage.getItem("english_reader_theme") || "light";
       this.setTheme(savedTheme);
@@ -422,7 +490,6 @@ class AppController {
       this.setFontFamily(savedFontFamily);
     } catch (e) {}
 
-    // 初始化生词角标数量
     this.updateVocabBadge(window.vocabManager.getCount());
   }
 
@@ -503,9 +570,7 @@ class AppController {
         this.reader.highlightSentence(idx);
         this.updateSentenceProgress(idx, sentences.length);
       },
-      onSentenceEnd: (idx) => {
-        // 单句结束
-      },
+      onSentenceEnd: () => {},
       onArticleEnd: () => {
         this.reader.clearSentenceHighlight();
         this.updatePlayerControls(false, false);
@@ -569,6 +634,14 @@ class AppController {
     }
   }
 
+  updateDictStats() {
+    const stats = window.DictEngine.getStats();
+    const statsEl = document.getElementById("dictStatsSummary");
+    if (statsEl) {
+      statsEl.innerHTML = `内置词库: <strong>${stats.builtInCount}</strong> 词 ｜ 个人自定义词库: <strong>${stats.customCount}</strong> 词`;
+    }
+  }
+
   renderVocabList(searchQuery = "") {
     const container = document.getElementById("vocabListContainer");
     if (!container) return;
@@ -601,8 +674,11 @@ class AppController {
           <div class="vocab-card-header">
             <span class="vocab-card-word">${item.word}</span>
             <span class="vocab-card-phonetic">${item.phonetic}</span>
-            <button class="vocab-speak-btn" title="朗读单词" onclick="window.speechEngine.speakWord('${item.word}')">
-              🔊
+            <button class="vocab-speak-btn" title="朗读美音" onclick="window.speechEngine.speakWordWithAccent('${item.word}', 'us')">
+              🇺🇸
+            </button>
+            <button class="vocab-speak-btn" title="朗读英音" onclick="window.speechEngine.speakWordWithAccent('${item.word}', 'uk')">
+              🇬🇧
             </button>
             <button class="vocab-del-btn" title="删除生词" onclick="window.vocabManager.removeWord('${item.word}')">
               ✕
@@ -633,7 +709,6 @@ class AppController {
   }
 }
 
-// 页面加载完成后实例化应用
 window.addEventListener("DOMContentLoaded", () => {
   window.app = new AppController();
 });

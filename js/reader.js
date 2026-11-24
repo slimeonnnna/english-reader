@@ -1,17 +1,19 @@
 /**
  * 文章分词渲染与点读交互引擎 (Article Reader & Tokenizer Engine)
- * 负责英文文本段落重组、智能分句、逐词标记、点击浮动弹窗与发音同步
+ * 适配桌面浮动弹窗与移动端居中沉浸半透明卡片
+ * 支持双音发音 (🇺🇸美音/🇬🇧英音)、逐句高亮与触控热区优化
  */
 
 class ArticleReader {
   constructor(containerElement, popoverElement) {
     this.container = containerElement;
     this.popover = popoverElement;
+    this.backdrop = document.getElementById("popoverBackdrop");
     this.rawText = "";
-    this.sentences = []; // 存储所有句子纯文本
+    this.sentences = [];
     this.currentActiveWordEl = null;
     this.currentActiveSentenceIdx = -1;
-    this.autoSpeakOnClick = true; // 默认点击单词立即发音
+    this.autoSpeakOnClick = true;
 
     this.initPopover();
   }
@@ -24,20 +26,37 @@ class ArticleReader {
   }
 
   initPopover() {
-    // 点击页面其他空白处关闭弹窗
+    // 点击背景遮罩关闭
+    if (this.backdrop) {
+      this.backdrop.addEventListener("click", () => {
+        this.hidePopover();
+      });
+    }
+
+    // 桌面端点击外部空白处关闭
     document.addEventListener("click", (e) => {
       if (!this.popover) return;
       if (this.popover.contains(e.target)) return;
       if (e.target.classList && e.target.classList.contains("reader-word")) return;
+      if (this.backdrop && this.backdrop.contains(e.target)) return;
       this.hidePopover();
     });
 
-    // 绑定弹窗内按钮事件
-    const btnSpeakWord = this.popover.querySelector("#popSpeakWord");
-    if (btnSpeakWord) {
-      btnSpeakWord.addEventListener("click", () => {
+    // 绑定发音按钮 (美音 & 英音)
+    const btnSpeakUS = this.popover.querySelector("#popSpeakUS");
+    if (btnSpeakUS) {
+      btnSpeakUS.addEventListener("click", () => {
         if (this.currentWordData) {
-          window.speechEngine.speakWord(this.currentWordData.query);
+          window.speechEngine.speakWordWithAccent(this.currentWordData.query, "us");
+        }
+      });
+    }
+
+    const btnSpeakUK = this.popover.querySelector("#popSpeakUK");
+    if (btnSpeakUK) {
+      btnSpeakUK.addEventListener("click", () => {
+        if (this.currentWordData) {
+          window.speechEngine.speakWordWithAccent(this.currentWordData.query, "uk");
         }
       });
     }
@@ -87,38 +106,23 @@ class ArticleReader {
     }
   }
 
-  /**
-   * 智能分句算法
-   * 避免对 Mr. / Mrs. / Dr. / U.S. / e.g. / i.e. / 数字小数点 进行误截断
-   */
   splitIntoSentences(text) {
     if (!text) return [];
-    
-    // 保护常见缩写
     let protectedText = text
       .replace(/\b(Mr|Mrs|Ms|Dr|Prof|Gen|Rep|Sen|St|vs|e\.g|i\.e|etc|U\.S|U\.K)\./gi, (match) => {
         return match.replace(/\./g, "___DOT___");
       })
-      .replace(/(\d+)\.(\d+)/g, "$1___DOT___$2"); // 保护小数
+      .replace(/(\d+)\.(\d+)/g, "$1___DOT___$2");
 
-    // 按句号、问号、叹号或分号分割
     const rawSentences = protectedText.split(/(?<=[.?!;])\s+/);
     const result = [];
-
     for (let s of rawSentences) {
       s = s.replace(/___DOT___/g, ".").trim();
-      if (s) {
-        result.push(s);
-      }
+      if (s) result.push(s);
     }
-
     return result;
   }
 
-  /**
-   * 加载并渲染文章
-   * @param {string} text - 英文文章原文
-   */
   loadArticle(text) {
     this.rawText = text || "";
     this.sentences = [];
@@ -136,7 +140,6 @@ class ArticleReader {
       return;
     }
 
-    // 按段落切分
     const rawParagraphs = this.rawText.split(/\n+/);
     let globalSentenceIdx = 0;
     let html = "";
@@ -155,19 +158,15 @@ class ArticleReader {
 
         paragraphHtml += `<span class="reader-sentence" data-sentence-idx="${currentSentIdx}">`;
         
-        // 将句子拆分为单词与非单词符号
-        // 匹配英文字符串（含单引号缩写如 don't, it's）
         const tokens = sent.split(/([a-zA-Z]+(?:'[a-zA-Z]+)?)/g);
         let wordIdx = 0;
 
         for (const token of tokens) {
           if (!token) continue;
           if (/^[a-zA-Z]+(?:'[a-zA-Z]+)?$/.test(token)) {
-            // 是单词
             paragraphHtml += `<span class="reader-word" data-word="${token}" data-sentence-idx="${currentSentIdx}" data-word-idx="${wordIdx}">${token}</span>`;
             wordIdx++;
           } else {
-            // 是标点或空格
             paragraphHtml += `<span class="reader-punct">${this.escapeHtml(token)}</span>`;
           }
         }
@@ -198,7 +197,6 @@ class ArticleReader {
   }
 
   handleWordClick(wordEl) {
-    // 移除之前的单词高亮
     if (this.currentActiveWordEl) {
       this.currentActiveWordEl.classList.remove("word-active");
     }
@@ -209,14 +207,14 @@ class ArticleReader {
     const sentenceIdx = parseInt(wordEl.getAttribute("data-sentence-idx"), 10);
     this.currentSentenceText = this.sentences[sentenceIdx] || "";
 
-    // 调用离线词典查询
+    // 查词
     const dictResult = window.DictEngine.lookup(rawWord);
     this.currentWordData = dictResult;
 
-    // 显示浮动卡片
+    // 显示卡片
     this.showPopover(wordEl, dictResult);
 
-    // 点词即发音 (如果开启了该设置)
+    // 点词即发音
     if (this.autoSpeakOnClick) {
       window.speechEngine.speakWord(dictResult.query);
     }
@@ -225,7 +223,6 @@ class ArticleReader {
   showPopover(targetEl, data) {
     if (!this.popover) return;
 
-    // 填充卡片数据
     const wordTitle = this.popover.querySelector("#popWordTitle");
     const lemmaTag = this.popover.querySelector("#popLemmaTag");
     const phonetic = this.popover.querySelector("#popPhonetic");
@@ -249,35 +246,50 @@ class ArticleReader {
       sourceTag.textContent = data.source || "";
     }
 
-    // 更新生词本按钮状态
     const inVocab = window.vocabManager.hasWord(data.query);
     this.updateVocabBtnState(inVocab);
 
-    // 计算弹窗绝对坐标（防止越出屏幕右侧或顶部）
     this.popover.classList.remove("hidden");
     this.popover.style.display = "block";
 
-    const rect = targetEl.getBoundingClientRect();
-    const popRect = this.popover.getBoundingClientRect();
-    const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
-    const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+    const isMobile = window.innerWidth <= 768;
 
-    // 默认在单词上方居中显示
-    let left = rect.left + scrollX + (rect.width / 2) - (popRect.width / 2);
-    let top = rect.top + scrollY - popRect.height - 10;
+    if (isMobile) {
+      // 📱 手机端：居中沉浸弹窗模式 + 半透明遮罩
+      if (this.backdrop) {
+        this.backdrop.classList.remove("hidden");
+        this.backdrop.style.display = "block";
+      }
+      this.popover.classList.add("mobile-immersive-popover");
+      this.popover.style.top = "";
+      this.popover.style.left = "";
+    } else {
+      // 💻 电脑端：浮动在单词附近
+      if (this.backdrop) {
+        this.backdrop.classList.add("hidden");
+        this.backdrop.style.display = "none";
+      }
+      this.popover.classList.remove("mobile-immersive-popover");
 
-    // 边界检测：防止超出右边界
-    const maxLeft = window.innerWidth - popRect.width - 15;
-    if (left > maxLeft) left = maxLeft;
-    if (left < 15) left = 15;
+      const rect = targetEl.getBoundingClientRect();
+      const popRect = this.popover.getBoundingClientRect();
+      const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+      const scrollY = window.pageYOffset || document.documentElement.scrollTop;
 
-    // 边界检测：若上方空间不足，则在下方显示
-    if (rect.top - popRect.height < 10) {
-      top = rect.bottom + scrollY + 10;
+      let left = rect.left + scrollX + (rect.width / 2) - (popRect.width / 2);
+      let top = rect.top + scrollY - popRect.height - 10;
+
+      const maxLeft = window.innerWidth - popRect.width - 15;
+      if (left > maxLeft) left = maxLeft;
+      if (left < 15) left = 15;
+
+      if (rect.top - popRect.height < 10) {
+        top = rect.bottom + scrollY + 10;
+      }
+
+      this.popover.style.left = `${Math.round(left)}px`;
+      this.popover.style.top = `${Math.round(top)}px`;
     }
-
-    this.popover.style.left = `${Math.round(left)}px`;
-    this.popover.style.top = `${Math.round(top)}px`;
   }
 
   updateVocabBtnState(isSaved) {
@@ -307,17 +319,17 @@ class ArticleReader {
       this.popover.style.display = "none";
       this.popover.classList.add("hidden");
     }
+    if (this.backdrop) {
+      this.backdrop.style.display = "none";
+      this.backdrop.classList.add("hidden");
+    }
     if (this.currentActiveWordEl) {
       this.currentActiveWordEl.classList.remove("word-active");
       this.currentActiveWordEl = null;
     }
   }
 
-  /**
-   * 句子朗读高亮跟踪
-   */
   highlightSentence(sentenceIdx) {
-    // 移除上一个句子的激活样式
     if (this.currentActiveSentenceIdx >= 0) {
       const prevEl = this.container.querySelector(`.reader-sentence[data-sentence-idx="${this.currentActiveSentenceIdx}"]`);
       if (prevEl) prevEl.classList.remove("sentence-active");
@@ -327,7 +339,6 @@ class ArticleReader {
     const currentEl = this.container.querySelector(`.reader-sentence[data-sentence-idx="${sentenceIdx}"]`);
     if (currentEl) {
       currentEl.classList.add("sentence-active");
-      // 保持当前句子平滑滚动在可视区
       currentEl.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   }
