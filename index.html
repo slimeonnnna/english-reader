@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>英语点读助手 - 纯本地·零API·点词即译·真人发音</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="theme-light">
+
+  <!-- 顶部导航栏 -->
+  <header class="header-bar">
+    <div class="brand-section">
+      <span class="brand-icon">📖</span>
+      <div class="brand-title">
+        <span>英语点读助手</span>
+        <span class="brand-tag">纯本地·零API</span>
+      </div>
+    </div>
+
+    <!-- 顶部操作区 -->
+    <div class="header-controls">
+      <!-- 示例文库快速下拉 -->
+      <select id="sampleSelect" class="header-select" title="选择经典文章示例快速体验"></select>
+
+      <!-- 视图切换按钮组 -->
+      <div class="btn-group">
+        <button id="btnSwitchRead" class="tab-btn active" title="进入点读阅读视图">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+          </svg>
+          <span>点读模式</span>
+        </button>
+        <button id="btnSwitchEdit" class="tab-btn" title="输入或导入自定义文章">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+          </svg>
+          <span>粘贴/导入</span>
+        </button>
+      </div>
+
+      <!-- 生词本入口 -->
+      <button id="btnOpenVocab" class="action-btn" title="查看生词本">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+        </svg>
+        <span>生词本</span>
+        <span id="vocabBadge" class="badge" style="display: none;">0</span>
+      </button>
+
+      <!-- 设置入口 -->
+      <button id="btnOpenSettings" class="action-btn" title="个性化设置">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- 主体区域 -->
+  <main class="main-container">
+
+    <!-- 1. 编辑 / 粘贴文章视图 -->
+    <section id="editView" class="view-panel">
+      <div class="edit-card">
+        <div class="edit-card-header">
+          <span class="edit-card-title">📝 粘贴或输入任意英文文章</span>
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="file" id="fileInput" accept=".txt,.md,.text" style="display: none;">
+            <button id="btnImportFile" class="action-btn" title="从电脑加载TXT文件">
+              📁 导入本地TXT
+            </button>
+            <button id="btnClearInput" class="action-btn" title="清空文本框">
+              🗑️ 清空
+            </button>
+          </div>
+        </div>
+
+        <textarea id="articleInput" class="article-textarea" placeholder="在此粘贴你想阅读的英文文章、演讲稿、小说或新闻..."></textarea>
+
+        <div class="edit-card-footer">
+          <span class="edit-tips">💡 提示：纯本地离线解析，支持任意长度文章，点击即可翻译与发音。</span>
+          <button id="btnSwitchRead" class="action-btn primary" style="padding: 0.6rem 1.4rem; font-size: 0.95rem;">
+            🚀 开始点读
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 点读阅读视图 -->
+    <section id="readView" class="view-panel" style="display: block;">
+      <article class="reader-wrapper">
+        <div id="readerContent" class="reader-content">
+          <!-- 分词后的文章内容将动态注入此处 -->
+        </div>
+      </article>
+    </section>
+
+  </main>
+
+  <!-- 浮动查词卡片 (Word Popover) -->
+  <div id="wordPopover" class="word-popover hidden">
+    <div class="popover-header">
+      <div class="popover-word-title" id="popWordTitle">word</div>
+      <button id="popClose" class="popover-close-btn" title="关闭卡片">✕</button>
+    </div>
+
+    <div class="popover-meta">
+      <span id="popPhonetic" class="popover-phonetic">/wɜːd/</span>
+      <button id="popSpeakWord" class="popover-speak-btn" title="朗读单词">
+        🔊 发音
+      </button>
+      <span id="popLemmaTag" class="popover-lemma-tag" style="display: none;"></span>
+      <span id="popSourceTag" style="font-size: 0.7rem; color: var(--text-muted); margin-left: auto;"></span>
+    </div>
+
+    <div class="popover-body">
+      <div id="popTranslation" class="popover-translation">
+        n. 单词，字；话语；诺言
+      </div>
+    </div>
+
+    <div class="popover-actions">
+      <button id="popToggleVocab" class="popover-btn" title="加入或移出生词本">
+        ⭐ 加入生词本
+      </button>
+      <button id="popSpeakSentence" class="popover-btn" title="朗读单词所在的整句话">
+        🗣️ 读整句
+      </button>
+      <button id="popEditDef" class="popover-btn" title="补充或修改此词释义">
+        ✏️ 记笔记
+      </button>
+    </div>
+  </div>
+
+  <!-- 底部悬浮朗读控制条 (Floating Audio Player) -->
+  <aside id="bottomPlayer" class="bottom-player">
+    <div class="player-controls">
+      <button id="btnPrevSentence" class="player-circle-btn" title="上一句">
+        ⏮
+      </button>
+      <button id="btnPlayArticle" class="player-circle-btn primary" title="整篇连续朗读 (空格键)">
+        ▶
+      </button>
+      <button id="btnPauseArticle" class="player-circle-btn primary" title="暂停朗读" style="display: none;">
+        ⏸
+      </button>
+      <button id="btnStopArticle" class="player-circle-btn" title="停止朗读">
+        ⏹
+      </button>
+      <button id="btnNextSentence" class="player-circle-btn" title="下一句">
+        ⏭
+      </button>
+    </div>
+
+    <div class="player-info">
+      <div class="player-meta">
+        <span id="playerStatus">就绪</span>
+        <span id="playerProgressText">第 0 / 0 句</span>
+      </div>
+      <div class="player-progress-container">
+        <div id="playerProgressBar" class="player-progress-bar"></div>
+      </div>
+    </div>
+
+    <div class="player-extra">
+      <span style="font-size: 0.78rem; color: var(--text-muted);">语速:</span>
+      <select id="rateSelect" class="player-select" title="朗读语速">
+        <option value="0.75">0.75x 慢速</option>
+        <option value="1.0" selected>1.0x 正常</option>
+        <option value="1.25">1.25x 稍快</option>
+        <option value="1.5">1.5x 快速</option>
+      </select>
+    </div>
+  </aside>
+
+  <!-- 生词本右侧抽屉 (Vocab Drawer) -->
+  <div id="vocabDrawer" class="vocab-drawer">
+    <div class="drawer-header">
+      <div class="drawer-title">
+        <span>⭐ 我的生词本</span>
+      </div>
+      <button id="btnCloseVocab" class="popover-close-btn" style="font-size: 1.1rem;">✕</button>
+    </div>
+
+    <div class="drawer-search">
+      <input type="text" id="vocabSearchInput" class="search-input" placeholder="🔍 搜索生词或中文释义...">
+    </div>
+
+    <div id="vocabListContainer" class="drawer-body">
+      <!-- 生词卡片动态生成 -->
+    </div>
+
+    <div class="drawer-footer">
+      <button id="btnExportCSV" class="action-btn" style="flex: 1;" title="导出Excel格式">
+        📥 导出 CSV
+      </button>
+      <button id="btnExportTXT" class="action-btn" style="flex: 1;" title="导出Anki卡片文本">
+        📇 导出 Anki
+      </button>
+      <button id="btnClearVocab" class="action-btn" style="color: #ef4444;" title="清空全部生词">
+        清空
+      </button>
+    </div>
+  </div>
+
+  <!-- 个性化设置弹窗 (Settings Modal) -->
+  <div id="settingsModal" class="modal-overlay hidden">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <span class="modal-title">⚙️ 阅读与朗读设置</span>
+        <button id="btnCloseSettings" class="popover-close-btn" style="font-size: 1.1rem;">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">🔊 系统本地英语发音人 (零API)</label>
+          <select id="voiceSelect" class="form-control" title="选择 Windows 本地语音库发音人"></select>
+          <small style="color: var(--text-muted); font-size: 0.75rem;">调用 Windows 自带真人发音引擎，无需连网，无调用上限。</small>
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-group">
+            <input type="checkbox" id="autoSpeakCheckbox" checked>
+            <span class="form-label" style="margin: 0;">点词时自动真人发音</span>
+          </label>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">🎨 阅读背景主题</label>
+          <div class="theme-options">
+            <button class="theme-btn active" data-theme="light">纯白简约</button>
+            <button class="theme-btn" data-theme="warm">暖黄羊皮纸</button>
+            <button class="theme-btn" data-theme="green">豆沙绿护眼</button>
+            <button class="theme-btn" data-theme="dark">夜间深色</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">🔤 正文字体样式</label>
+          <div class="font-options">
+            <button class="font-btn active" data-font="serif">经典衬线体</button>
+            <button class="font-btn" data-font="sans">现代无衬线</button>
+            <button class="font-btn" data-font="mono">等宽学术</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label class="form-label">🔍 正文字号大小</label>
+            <span id="fontSizeValue" style="font-size: 0.85rem; color: var(--accent-color); font-weight: 600;">18px</span>
+          </div>
+          <input type="range" id="fontSizeSlider" min="14" max="28" value="18" step="1" style="width: 100%; cursor: pointer;">
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button onclick="document.getElementById('settingsModal').classList.add('hidden')" class="action-btn primary">
+          完成
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 补充/编辑释义弹窗 (Edit Definition Modal) -->
+  <div id="editDefModal" class="modal-overlay hidden">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <span class="modal-title">✏️ 自定义单词释义与笔记</span>
+        <button onclick="document.getElementById('editDefModal').classList.add('hidden')" class="popover-close-btn">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">单词 (Word)</label>
+          <input type="text" id="editDefWord" class="form-control" readonly style="background-color: var(--bg-secondary);">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">音标 (Phonetic)</label>
+          <input type="text" id="editDefPhonetic" class="form-control" placeholder="/.../">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">中文释义与笔记 (Translation & Note)</label>
+          <textarea id="editDefTranslation" class="form-control" rows="3" placeholder="输入单词词性、中文含义或个人记忆法..."></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="btnCancelDef" class="action-btn">取消</button>
+        <button id="btnSaveDef" class="action-btn primary">保存并记住</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 引入离线引擎模块 (按依赖顺序加载) -->
+  <script src="js/stemmer.js"></script>
+  <script src="js/dict-data.js"></script>
+  <script src="js/speech.js"></script>
+  <script src="js/vocab.js"></script>
+  <script src="js/reader.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
