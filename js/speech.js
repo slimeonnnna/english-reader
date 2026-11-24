@@ -75,12 +75,19 @@ class LocalSpeechEngine {
   }
 
   loadVoices() {
-    this.voices = this.synth.getVoices();
+    if (!this.synth) return;
+    try {
+      this.voices = this.synth.getVoices() || [];
+    } catch (e) {
+      this.voices = [];
+    }
+    
     // 过滤出英语语音 (包含美音、英音、澳音等系统自带声音)
-    this.englishVoices = this.voices.filter(v => {
+    this.englishVoices = (this.voices || []).filter(v => {
+      if (!v) return false;
       const lang = (v.lang || "").toLowerCase().replace("_", "-");
       const name = (v.name || "").toLowerCase();
-      return lang.startsWith("en") || name.includes("english") || name.includes("siri");
+      return lang.startsWith("en") || name.includes("english") || name.includes("siri") || name.includes("google");
     });
 
     // 智能分类美音与英音、男声与女声
