@@ -255,6 +255,7 @@ class AppController {
       btnStopArticle.addEventListener("click", () => {
         window.speechEngine.stop();
         this.reader.clearSentenceHighlight();
+        this.reader.clearWordHighlight();
         this.updatePlayerControls(false, false);
       });
     }
@@ -1091,8 +1092,15 @@ class AppController {
           }).catch(() => {});
         }
       },
+      onWordBoundary: (sentIdx, charIndex) => {
+        this.reader.highlightWordAtCharIndex(sentIdx, charIndex);
+      },
+      onSentenceEnd: () => {
+        this.reader.clearWordHighlight();
+      },
       onArticleEnd: () => {
         this.reader.clearSentenceHighlight();
+        this.reader.clearWordHighlight();
         this.updatePlayerControls(false, false);
         this.updateReadingProgress(sentences.length - 1, sentences.length);
       }

@@ -293,6 +293,7 @@ class ArticleReader {
     const sentenceIdx = parseInt(wordEl.getAttribute("data-sentence-idx"), 10);
     this.currentSentenceText = this.sentences[sentenceIdx] || "";
     this.currentSentenceIdx = sentenceIdx;
+    this.highlightSentence(sentenceIdx, false);
     this._emitProgress(sentenceIdx);
 
     // 先展示即时卡片骨架
@@ -410,14 +411,17 @@ class ArticleReader {
     }
   }
 
-  highlightSentence(index) {
+  highlightSentence(index, autoScroll = true) {
     this.clearSentenceHighlight();
     this.currentSentenceIdx = index;
     this._emitProgress(index);
     const sentEl = this.container.querySelector(`.reader-sentence[data-sentence-idx="${index}"]`);
     if (sentEl) {
       sentEl.classList.add("sentence-highlight");
-      sentEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      sentEl.classList.add("sentence-active");
+      if (autoScroll) {
+        sentEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
     }
   }
 
@@ -431,8 +435,47 @@ class ArticleReader {
   }
 
   clearSentenceHighlight() {
-    const prev = this.container.querySelectorAll(".sentence-highlight");
-    prev.forEach(el => el.classList.remove("sentence-highlight"));
+    const prev = this.container.querySelectorAll(".sentence-highlight, .sentence-active");
+    prev.forEach(el => {
+      el.classList.remove("sentence-highlight");
+      el.classList.remove("sentence-active");
+    });
+  }
+
+  highlightWordAtCharIndex(sentenceIdx, charIndex) {
+    const sentEl = this.container.querySelector(`.reader-sentence[data-sentence-idx="${sentenceIdx}"]`);
+    if (!sentEl) return;
+    const wordEls = sentEl.querySelectorAll(".reader-word");
+    if (!wordEls || wordEls.length === 0) return;
+
+    const sentText = this.sentences[sentenceIdx] || "";
+    let curSearchPos = 0;
+
+    for (let i = 0; i < wordEls.length; i++) {
+      const wEl = wordEls[i];
+      const wordText = wEl.getAttribute("data-word") || wEl.textContent.trim();
+      const pos = sentText.indexOf(wordText, curSearchPos);
+      if (pos !== -1) {
+        curSearchPos = pos + wordText.length;
+        if (charIndex >= pos && charIndex <= curSearchPos) {
+          if (this.currentActiveWordEl && this.currentActiveWordEl !== wEl) {
+            this.currentActiveWordEl.classList.remove("word-active");
+          }
+          this.currentActiveWordEl = wEl;
+          wEl.classList.add("word-active");
+          break;
+        }
+      }
+    }
+  }
+
+  clearWordHighlight() {
+    if (this.currentActiveWordEl) {
+      this.currentActiveWordEl.classList.remove("word-active");
+      this.currentActiveWordEl = null;
+    }
+    const actives = this.container.querySelectorAll(".word-active");
+    actives.forEach(el => el.classList.remove("word-active"));
   }
 
   getSentenceList() {

@@ -364,21 +364,51 @@ body {
 }
 
 .reader-word.word-active {
-  background-color: var(--word-active-bg);
-  box-shadow: 0 0 0 2px var(--accent-color);
-  font-weight: 600;
+  background-color: var(--word-active-bg) !important;
+  box-shadow: 0 0 0 2px var(--accent-color) !important;
+  font-weight: 700 !important;
+  border-radius: 4px;
 }
 
 .reader-sentence {
-  border-radius: var(--radius-sm);
-  padding: 2px 0;
-  transition: background-color 0.25s ease;
+  border-radius: 4px;
+  padding: 2px 3px;
+  margin: 0 -2px;
+  transition: all 0.2s ease;
+  display: inline;
 }
 
+/* 句子朗读与点词聚焦高亮 (Apple Books / 微信读书沉浸式光晕) */
+.reader-sentence.sentence-highlight,
 .reader-sentence.sentence-active {
   background-color: var(--sentence-active-bg);
-  box-shadow: -4px 0 0 var(--accent-color);
-  padding-left: 4px;
+  box-shadow: 0 0 0 3px var(--sentence-active-bg);
+  border-radius: 6px;
+}
+
+body.theme-light .reader-sentence.sentence-highlight,
+body.theme-light .reader-sentence.sentence-active {
+  background-color: #fef08a !important; /* 经典清晰黄色高亮 */
+  box-shadow: 0 0 0 3px #fef08a !important;
+  color: #1e293b !important;
+}
+
+body.theme-warm .reader-sentence.sentence-highlight,
+body.theme-warm .reader-sentence.sentence-active {
+  background-color: #fde68a !important;
+  box-shadow: 0 0 0 3px #fde68a !important;
+}
+
+body.theme-green .reader-sentence.sentence-highlight,
+body.theme-green .reader-sentence.sentence-active {
+  background-color: #bbf7d0 !important;
+  box-shadow: 0 0 0 3px #bbf7d0 !important;
+}
+
+body.theme-dark .reader-sentence.sentence-highlight,
+body.theme-dark .reader-sentence.sentence-active {
+  background-color: rgba(234, 179, 8, 0.3) !important;
+  box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.3) !important;
 }
 
 .reader-punct {

@@ -394,6 +394,7 @@ class LocalSpeechEngine {
     this.onSentenceStartCallback = callbacks.onSentenceStart || null;
     this.onSentenceEndCallback = callbacks.onSentenceEnd || null;
     this.onArticleEndCallback = callbacks.onArticleEnd || null;
+    this.onWordBoundaryCallback = callbacks.onWordBoundary || null;
 
     this._playNextSentence();
   }
@@ -425,6 +426,13 @@ class LocalSpeechEngine {
       if (currentToken !== this.playbackToken) return;
       if (this.onSentenceStartCallback) {
         this.onSentenceStartCallback(this.currentSentenceIdx, text);
+      }
+    };
+
+    utterance.onboundary = (e) => {
+      if (currentToken !== this.playbackToken) return;
+      if (e.name === "word" && this.onWordBoundaryCallback) {
+        this.onWordBoundaryCallback(this.currentSentenceIdx, e.charIndex, e.charLength || 0);
       }
     };
 
