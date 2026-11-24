@@ -11,6 +11,8 @@
   <meta name="format-detection" content="telephone=no">
   <meta name="theme-color" content="#ffffff">
   <title>英语点读助手 - 纯本地·零API·点词即译·真人发音</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="theme-light">
@@ -29,6 +31,11 @@
     <div class="header-controls">
       <!-- 示例文库快速下拉 (电脑端显示) -->
       <select id="sampleSelect" class="header-select desktop-only" title="选择经典文章示例快速体验"></select>
+
+      <!-- 文章历史/切换文章 -->
+      <button id="btnOpenArticles" class="action-btn" title="我的历史文章与阅读进度">
+        📑 <span class="desktop-only">文章</span>
+      </button>
 
       <!-- 视图切换按钮组 -->
       <div class="btn-group">
@@ -83,16 +90,21 @@
             <button id="btnImportFile" class="action-btn" title="从手机/电脑加载TXT文件">
               📁 导入TXT
             </button>
+            <button id="btnSaveCurrentArticle" class="action-btn" title="保存文章到历史">
+              💾 保存
+            </button>
             <button id="btnClearInput" class="action-btn" title="清空文本框">
               🗑️
             </button>
           </div>
         </div>
 
+        <input type="text" id="articleTitleInput" class="form-control" placeholder="文章标题 (可选，默认提取首句)" style="margin-bottom: 0.6rem; font-weight: 600;">
+
         <textarea id="articleInput" class="article-textarea" placeholder="在此粘贴你想阅读的英文文章、新闻、演讲稿或考试真题..."></textarea>
 
         <div class="edit-card-footer">
-          <span class="edit-tips">💡 提示：纯本地离线解析，点击任何单词即可发音与查词。</span>
+          <span class="edit-tips">💡 提示：纯本地离线解析，点击任何单词或短语即可发音与查词。</span>
           <button id="btnSwitchRead" class="action-btn primary start-read-btn">
             🚀 开始点读
           </button>
@@ -111,106 +123,141 @@
 
   </main>
 
-  <!-- 移动端沉浸半透明背景遮罩 -->
+  <!-- 查词结果卡片 (Word Popover / Mobile Dialog) -->
   <div id="popoverBackdrop" class="popover-backdrop hidden"></div>
-
-  <!-- 浮动查词卡片 / 手机端居中沉浸卡片 -->
-  <div id="wordPopover" class="word-popover hidden">
+  <aside id="wordPopover" class="word-popover hidden" role="dialog" aria-modal="true">
     <div class="popover-header">
-      <div class="popover-word-title" id="popWordTitle">word</div>
-      <button id="popClose" class="popover-close-btn" title="关闭卡片">✕</button>
-    </div>
-
-    <div class="popover-meta">
-      <span id="popPhonetic" class="popover-phonetic">/wɜːd/</span>
-      
-      <!-- 双口音真人发音按钮 (美音 & 英音) -->
-      <button id="popSpeakUS" class="popover-accent-btn" title="朗读美式发音">
-        🇺🇸 美音
-      </button>
-      <button id="popSpeakUK" class="popover-accent-btn" title="朗读英式发音">
-        🇬🇧 英音
-      </button>
-
-      <span id="popLemmaTag" class="popover-lemma-tag" style="display: none;"></span>
-      <span id="popSourceTag" style="font-size: 0.7rem; color: var(--text-muted); margin-left: auto;"></span>
+      <div class="popover-title-row">
+        <span id="popWordTitle" class="popover-word">apple</span>
+        <span id="popPhonetic" class="popover-phonetic">/ˈæpl/</span>
+        <button id="popSpeakUS" class="popover-accent-btn" title="点击朗读美音">🇺🇸 美音</button>
+        <button id="popSpeakUK" class="popover-accent-btn" title="点击朗读英音">🇬🇧 英音</button>
+        <span id="popLemmaTag" class="popover-lemma-tag" style="display: none;"></span>
+      </div>
+      <button id="popClose" class="popover-close-btn" aria-label="关闭卡片">✕</button>
     </div>
 
     <div class="popover-body">
       <div id="popTranslation" class="popover-translation">
-        n. 单词，字；话语；诺言
+        n. 苹果；苹果树；苹果电脑公司
       </div>
     </div>
 
     <div class="popover-actions">
-      <button id="popToggleVocab" class="popover-btn" title="加入或移出生词本">
-        ⭐ 收藏生词
+      <button id="popSpeakSentence" class="popover-btn" title="读整句">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        </svg>
+        <span>整句朗读</span>
       </button>
-      <button id="popSpeakSentence" class="popover-btn" title="朗读单词所在的整句话">
-        🗣️ 读整句
+
+      <button id="popToggleVocab" class="popover-btn" title="添加/移出生词本">
+        <span>☆</span>
+        <span>存入生词本</span>
       </button>
-      <button id="popEditDef" class="popover-btn" title="补充或修改此词释义">
-        ✏️ 记笔记
+
+      <button id="popEditDef" class="popover-btn" title="自定义单词释义与个人记忆笔记">
+        <span>✏️</span>
+        <span>笔记</span>
       </button>
     </div>
-  </div>
 
-  <!-- 底部悬浮朗读控制条 (iPhone 安全区适配 + 快速音色切换) -->
+    <div class="popover-footer">
+      <span id="popSourceTag" class="popover-source">ECDICT 离线词库</span>
+    </div>
+  </aside>
+
+  <!-- 底部悬浮朗读播放器 (iPhone 优化 + 快速音色栏) -->
   <aside id="bottomPlayer" class="bottom-player">
     <div class="player-controls">
       <button id="btnPrevSentence" class="player-circle-btn" title="上一句">
-        ⏮
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="19 20 9 12 19 4 19 20"></polygon>
+          <line x1="5" y1="19" x2="5" y2="5"></line>
+        </svg>
       </button>
-      <button id="btnPlayArticle" class="player-circle-btn primary" title="整篇连续朗读">
-        ▶
+
+      <button id="btnPlayArticle" class="player-circle-btn primary" title="整篇连续逐句朗读">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg>
       </button>
-      <button id="btnPauseArticle" class="player-circle-btn primary" title="暂停朗读" style="display: none;">
-        ⏸
+
+      <button id="btnPauseArticle" class="player-circle-btn" style="display: none;" title="暂停播放">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <rect x="6" y="4" width="4" height="16"></rect>
+          <rect x="14" y="4" width="4" height="16"></rect>
+        </svg>
       </button>
-      <button id="btnStopArticle" class="player-circle-btn" title="停止朗读">
-        ⏹
+
+      <button id="btnStopArticle" class="player-circle-btn" title="停止播放并重置">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <rect x="5" y="5" width="14" height="14"></rect>
+        </svg>
       </button>
+
       <button id="btnNextSentence" class="player-circle-btn" title="下一句">
-        ⏭
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="5 4 15 12 5 20 5 4"></polygon>
+          <line x1="19" y1="5" x2="19" y2="19"></line>
+        </svg>
       </button>
     </div>
 
+    <!-- 句子进度与发音选择 -->
     <div class="player-info">
-      <div class="player-meta">
-        <span id="playerStatus">就绪</span>
-        <span id="playerProgressText">第 0 / 0 句</span>
+      <div class="player-status-row">
+        <span id="playerSentenceProgress" class="player-progress">第 0 / 0 句</span>
+        <button id="btnPreviewVoice" class="voice-test-btn" title="试听当前发音人声音">🔊 试听</button>
       </div>
-      <div class="player-progress-container">
-        <div id="playerProgressBar" class="player-progress-bar"></div>
-      </div>
-    </div>
 
-    <!-- 快捷音色选择与语速 -->
-    <div class="player-extra">
-      <select id="voicePresetSelect" class="player-select" title="切换发音人口音与性别">
-        <option value="us_female">🇺🇸 美音女声</option>
+      <select id="voicePresetSelect" class="player-select" title="快速切换发音人口音与性别">
+        <option value="us_female" selected>🇺🇸 美音女声</option>
         <option value="us_male">🇺🇸 美音男声</option>
         <option value="uk_female">🇬🇧 英音女声</option>
         <option value="uk_male">🇬🇧 英音男声</option>
       </select>
-      <button id="btnPreviewVoice" class="player-circle-btn" style="width: 32px; height: 32px;" title="试听当前音色">
-        🔊
-      </button>
-      <select id="rateSelect" class="player-select" title="朗读语速">
-        <option value="0.75">0.75x 慢速</option>
-        <option value="1.0" selected>1.0x 正常</option>
-        <option value="1.25">1.25x 稍快</option>
-        <option value="1.5">1.5x 快速</option>
+    </div>
+
+    <div class="player-rate">
+      <select id="rateSelect" class="rate-select" title="调节朗读语速">
+        <option value="0.75">0.75x</option>
+        <option value="1.0" selected>1.0x</option>
+        <option value="1.25">1.25x</option>
+        <option value="1.5">1.5x</option>
       </select>
     </div>
   </aside>
+
+  <!-- 文章历史管理弹窗 (Articles Modal) -->
+  <div id="articlesModal" class="modal-overlay hidden">
+    <div class="modal-dialog" style="max-width: 540px;">
+      <div class="modal-header">
+        <span class="modal-title">📑 历史文章与阅读进度</span>
+        <button id="btnCloseArticlesModal" class="popover-close-btn">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <input type="text" id="articleSearchInput" class="form-control" placeholder="🔍 搜索历史文章标题或关键词...">
+        </div>
+        <div id="articleListContainer" class="article-list">
+          <!-- 历史文章列表动态渲染 -->
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: space-between;">
+        <button id="btnNewArticle" class="action-btn">➕ 新建文章</button>
+        <button id="btnCloseArticlesBtn" class="action-btn primary">关闭</button>
+      </div>
+    </div>
+  </div>
 
   <!-- 词库管理与批量导入弹窗 (Dict Manager Modal) -->
   <div id="dictModal" class="modal-overlay hidden">
     <div class="modal-dialog">
       <div class="modal-header">
         <span class="modal-title">📚 离线词库与导入管理</span>
-        <button id="btnCloseDictModal" class="popover-close-btn" style="font-size: 1.1rem;">✕</button>
+        <button id="btnCloseDictModal" class="popover-close-btn">✕</button>
       </div>
 
       <div class="modal-body">
@@ -227,12 +274,8 @@
 
         <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
           <input type="file" id="dictFileInput" accept=".json,.csv,.txt" style="display: none;">
-          <button id="btnDoImportDict" class="action-btn primary" style="flex: 1;">
-            立即导入文本
-          </button>
-          <button id="btnUploadDictFile" class="action-btn" style="flex: 1;">
-            从文件导入
-          </button>
+          <button id="btnDoImportDict" class="action-btn primary" style="flex: 1;">立即导入文本</button>
+          <button id="btnUploadDictFile" class="action-btn" style="flex: 1;">从文件导入</button>
         </div>
 
         <div class="form-group" style="margin-top: 0.5rem;">
@@ -246,40 +289,71 @@
       </div>
 
       <div class="modal-footer">
-        <button onclick="document.getElementById('dictModal').classList.add('hidden')" class="action-btn primary">
-          关闭
-        </button>
+        <button id="btnCloseDictModalFooter" class="action-btn primary">关闭</button>
       </div>
     </div>
   </div>
 
-  <!-- 生词本右侧抽屉 (Vocab Drawer) -->
+  <!-- 生词本右侧抽屉 (Vocab Drawer & SM-2 Flashcards) -->
   <div id="vocabDrawer" class="vocab-drawer">
     <div class="drawer-header">
       <div class="drawer-title">
         <span>⭐ 我的生词本</span>
       </div>
-      <button id="btnCloseVocab" class="popover-close-btn" style="font-size: 1.1rem;">✕</button>
+      <button id="btnCloseVocab" class="popover-close-btn">✕</button>
     </div>
 
-    <div class="drawer-search">
-      <input type="text" id="vocabSearchInput" class="search-input" placeholder="🔍 搜索生词或中文释义...">
+    <!-- 生词本内部模式切换 -->
+    <div class="drawer-tabs">
+      <button id="tabVocabList" class="drawer-tab active">📋 生词列表 (<span id="vocabTabCount">0</span>)</button>
+      <button id="tabVocabReview" class="drawer-tab">🧠 间隔复习 (<span id="vocabDueCount">0</span>)</button>
     </div>
 
-    <div id="vocabListContainer" class="drawer-body">
-      <!-- 生词卡片动态生成 -->
+    <!-- 列表模式视图 -->
+    <div id="vocabListView" style="display: flex; flex-direction: column; flex: 1; overflow: hidden;">
+      <div class="drawer-search">
+        <input type="text" id="vocabSearchInput" class="search-input" placeholder="🔍 搜索生词或中文释义...">
+      </div>
+
+      <div id="vocabListContainer" class="drawer-body">
+        <!-- 生词卡片动态生成 -->
+      </div>
+
+      <div class="drawer-footer">
+        <button id="btnExportCSV" class="action-btn" style="flex: 1;" title="导出Excel格式">📥 导出 CSV</button>
+        <button id="btnExportTXT" class="action-btn" style="flex: 1;" title="导出Anki卡片文本">📇 导出 Anki</button>
+        <button id="btnClearVocab" class="action-btn" style="color: #ef4444;" title="清空全部生词">清空</button>
+      </div>
     </div>
 
-    <div class="drawer-footer">
-      <button id="btnExportCSV" class="action-btn" style="flex: 1;" title="导出Excel格式">
-        📥 导出 CSV
-      </button>
-      <button id="btnExportTXT" class="action-btn" style="flex: 1;" title="导出Anki卡片文本">
-        📇 导出 Anki
-      </button>
-      <button id="btnClearVocab" class="action-btn" style="color: #ef4444;" title="清空全部生词">
-        清空
-      </button>
+    <!-- SM-2 记忆卡片复习模式视图 -->
+    <div id="vocabReviewView" style="display: none; flex-direction: column; flex: 1; overflow-y: auto;">
+      <div class="review-container">
+        <div class="review-progress-bar">
+          <span id="reviewProgressText">今日待复习: 0 张</span>
+          <span id="reviewCurrentIndexText">第 1/1 张</span>
+        </div>
+
+        <div id="flashcardBox" class="flashcard-box">
+          <div id="cardWord" class="card-word">Enjoy</div>
+          <div id="cardPhonetic" class="card-phonetic">/ɪnˈdʒɔɪ/</div>
+          <button id="btnRevealCard" class="action-btn primary" style="margin-top: 1rem; width: 85%;">
+            👀 点击翻转·查看释义
+          </button>
+          <div id="cardDefBox" class="card-def-box" style="display: none;">
+            <div id="cardTranslation" class="card-translation">vt. 享受，喜爱；欣赏</div>
+            <div id="cardSentence" class="card-sentence">Enjoy reading your favorite books!</div>
+          </div>
+        </div>
+
+        <!-- 4 档打分按钮 (Again, Hard, Good, Easy) -->
+        <div id="cardRatingGroup" class="card-rating-btns" style="display: none;">
+          <button class="rating-btn again" data-quality="1"><span>重来</span><small>1天</small></button>
+          <button class="rating-btn hard" data-quality="3"><span>困难</span><small>慢速</small></button>
+          <button class="rating-btn good" data-quality="4"><span>良好</span><small>标准</small></button>
+          <button class="rating-btn easy" data-quality="5"><span>简单</span><small>轻松</small></button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -288,7 +362,7 @@
     <div class="modal-dialog">
       <div class="modal-header">
         <span class="modal-title">⚙️ 阅读与朗读设置</span>
-        <button id="btnCloseSettings" class="popover-close-btn" style="font-size: 1.1rem;">✕</button>
+        <button id="btnCloseSettings" class="popover-close-btn">✕</button>
       </div>
 
       <div class="modal-body">
@@ -300,7 +374,17 @@
             <option value="uk_female">🇬🇧 英音女声</option>
             <option value="uk_male">🇬🇧 英音男声</option>
           </select>
-          <small style="color: var(--text-muted); font-size: 0.75rem;">直接调度 iPhone / 系统原生发音人，零 API 消耗，省电极速。</small>
+        </div>
+
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label class="form-label">🎙️ 设备精确音色选择 (高级)</label>
+            <button id="btnPreviewExactVoice" class="voice-test-btn" style="font-size: 0.75rem;">🔊 试听</button>
+          </div>
+          <select id="settingsExactVoiceSelect" class="form-control" title="选择设备底层具体系统音色">
+            <option value="">跟随上方快速预设</option>
+          </select>
+          <small style="color: var(--text-muted); font-size: 0.75rem;">优先推荐 Natural、Enhanced、Siri 等高质量系统发音人。</small>
         </div>
 
         <div class="form-group">
@@ -308,6 +392,21 @@
             <input type="checkbox" id="autoSpeakCheckbox" checked>
             <span class="form-label" style="margin: 0;">点词时自动发音</span>
           </label>
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-group">
+            <input type="checkbox" id="examHighlightCheckbox">
+            <span class="form-label" style="margin: 0;">高亮考纲核心词汇 (可选，默认关闭)</span>
+          </label>
+          <select id="examHighlightSelect" class="form-control" style="margin-top: 0.4rem; display: none;">
+            <option value="all">全部重点考纲词</option>
+            <option value="cet4">大学英语四级 (CET-4)</option>
+            <option value="cet6">大学英语六级 (CET-6)</option>
+            <option value="ky">考研英语核心 (KY)</option>
+            <option value="ielts">雅思核心 (IELTS)</option>
+            <option value="toefl">托福核心 (TOEFL)</option>
+          </select>
         </div>
 
         <div class="form-group">
@@ -336,12 +435,20 @@
           </div>
           <input type="range" id="fontSizeSlider" min="14" max="28" value="18" step="1" style="width: 100%; cursor: pointer;">
         </div>
+
+        <div class="form-group" style="margin-top: 0.5rem; border-top: 1px solid var(--border-color); padding-top: 0.8rem;">
+          <label class="form-label">📦 数据安全与一键备份</label>
+          <div style="display: flex; gap: 0.5rem;">
+            <button id="btnExportBackupJSON" class="action-btn" style="flex: 1;">📥 备份所有数据</button>
+            <button id="btnImportBackupJSON" class="action-btn" style="flex: 1;">📤 恢复备份数据</button>
+            <input type="file" id="backupFileInput" accept=".json" style="display: none;">
+          </div>
+          <small style="color: var(--text-muted); font-size: 0.75rem;">包含全部文章、阅读进度、生词本、自定义词库及设置。</small>
+        </div>
       </div>
 
       <div class="modal-footer">
-        <button onclick="document.getElementById('settingsModal').classList.add('hidden')" class="action-btn primary">
-          完成
-        </button>
+        <button id="btnCloseSettingsFooter" class="action-btn primary">完成</button>
       </div>
     </div>
   </div>
@@ -351,7 +458,7 @@
     <div class="modal-dialog">
       <div class="modal-header">
         <span class="modal-title">✏️ 自定义单词释义与笔记</span>
-        <button onclick="document.getElementById('editDefModal').classList.add('hidden')" class="popover-close-btn">✕</button>
+        <button id="btnCloseEditDef" class="popover-close-btn">✕</button>
       </div>
 
       <div class="modal-body">
@@ -379,11 +486,22 @@
   </div>
 
   <!-- 引入离线引擎模块 (按依赖顺序加载) -->
+  <script src="js/db.js"></script>
   <script src="js/stemmer.js"></script>
   <script src="js/dict-data.js"></script>
   <script src="js/speech.js"></script>
   <script src="js/vocab.js"></script>
   <script src="js/reader.js"></script>
   <script src="js/app.js"></script>
+  <script>
+    // 注册 Service Worker 实现 PWA 离线运行
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(err => {
+          console.log('ServiceWorker 注册:', err);
+        });
+      });
+    }
+  </script>
 </body>
 </html>

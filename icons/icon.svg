@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#1d4ed8" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="110" fill="url(#grad)" />
+  <g fill="#ffffff" transform="translate(96, 96)">
+    <!-- Book open icon -->
+    <path d="M160 32C106 32 48 48 16 64v240c32-16 90-32 144-32 54 0 112 16 144 32V64c-32-16-90-32-144-32zm-16 224c-42 0-88 12-112 24V96c24-12 70-24 112-24 44 0 84 14 112 26v158c-28-12-68-32-112-32zm144 24c-24-12-70-24-112-24-44 0-84 20-112 32V96c28-12 68-26 112-26 42 0 88 12 112 24v174z" fill-rule="evenodd"/>
+    <!-- Sound wave badge -->
+    <circle cx="270" cy="50" r="36" fill="#10b981" />
+    <path d="M262 38v24l16-12z" fill="#ffffff" />
+  </g>
+</svg>
